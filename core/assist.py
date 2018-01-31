@@ -28,7 +28,7 @@ class PandaAPI(object):
     PACKAGE_PREFIX_END = 15
     PACKAGE_START = b'\x00\x06\x00\x03'
 
-    #直播间弹幕服务信息获取
+    # 直播间弹幕服务信息获取
     sock = None
 
     room_api = "https://riven.panda.tv/chatroom/getinfo?roomid={0}&app=1&protocol=ws&_caller=panda-pc_web&_={1}"
@@ -36,14 +36,14 @@ class PandaAPI(object):
 
     room_id = 0
     room_info = \
-    {
-        'rid': int(),
-        'app_id': int(),
-        'time_stamp': 0,
-        'sign': '',
-        'auth_type': None,
-        'server_list': list(),
-    }
+        {
+            'rid': int(),
+            'app_id': int(),
+            'time_stamp': 0,
+            'sign': '',
+            'auth_type': None,
+            'server_list': list(),
+        }
 
     server_has_select = 0
     heart_keeper = b'\x00\x06\x00\x01'
@@ -51,7 +51,7 @@ class PandaAPI(object):
 
     recv_buffer = None
 
-    #初始化房间信息
+    # 初始化房间信息
     def __init__(self, room_id=None):
         """
         :param roomid: 直播间房间号（int）
@@ -62,7 +62,8 @@ class PandaAPI(object):
         if room_id:
             self.room_id = str(room_id)
             self.room_info['ts'] = int(time.time())
-            self.danmu_uri = self.room_api.format(self.room_id, self.room_info['ts'])
+            self.danmu_uri = self.room_api.format(
+                self.room_id, self.room_info['ts'])
             self.ready()
 
     def is_ready(self):
@@ -89,7 +90,7 @@ class PandaAPI(object):
         """
         if not self.room_info['server_list']:
             raise Exception('程序未初始化！')
-        elif self.server_has_select <= len(self.room_info['server_list'])-1:
+        elif self.server_has_select <= len(self.room_info['server_list']) - 1:
             server = self.room_info['server_list'][self.server_has_select]
             self.server_has_select += 1
             addr = server.rsplit(':')
@@ -98,7 +99,8 @@ class PandaAPI(object):
             raise Exception('服务器皆不可用！')
 
     def login(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   # 阻塞式socket
+        self.sock = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM)   # 阻塞式socket
         self.sock.connect(self._get_server())
         msg = self.msg.format(self.room_info['rid'], self.room_info['app_id'], self.room_info['time_stamp'],
                               self.room_info['sign'], self.room_info['auth_type'])
@@ -109,9 +111,10 @@ class PandaAPI(object):
         print('弹幕服务登录成功！\t房间号：' + str(self.room_id))
 
         self.sock.recv(self.MAX_RECV_BUFFER)    # 服务器返回\x00\x06\x00\x06
-        #获取心跳包
+        # 获取心跳包
         self.heart_keeper = self.sock.recv(self.MAX_RECV_BUFFER)
-        Logger.logd('heart break:{}'.format(self.heart_keeper), level=Logger.DEBUG)
+        Logger.logd('heart break:{}'.format(
+            self.heart_keeper), level=Logger.DEBUG)
 
     def mainloop(self):
         def _main_loop():
@@ -122,35 +125,36 @@ class PandaAPI(object):
                     continue
                 package_length = struct.unpack(
                     '>I', self.recv_buffer[
-                          self.PACKAGE_PREFIX_START:
-                          self.PACKAGE_PREFIX_END
-                          ])[0]
-                print('package length: ', package_length)
-                print(len(self.recv_buffer))
+                        self.PACKAGE_PREFIX_START:
+                        self.PACKAGE_PREFIX_END
+                    ])[0]
                 while package_length:
-                    self.recv_buffer = self.sock.recv(MessageFactory.MESSAGE_PREFIX_LENGTH)
+                    self.recv_buffer = self.sock.recv(
+                        MessageFactory.MESSAGE_PREFIX_LENGTH)
                     message_length = struct.unpack(
                         '>I', self.recv_buffer[
-                              MessageFactory.MESSAGE_PREFIX_START:
-                              MessageFactory.MESSAGE_PREFIX_END
-                              ])[0]
-                    print(self.recv_buffer)
-                    print('message length: ', message_length)
+                            MessageFactory.MESSAGE_PREFIX_START:
+                            MessageFactory.MESSAGE_PREFIX_END
+                        ])[0]
                     self.recv_buffer = self.sock.recv(message_length)
                     while not len(self.recv_buffer) == message_length:
-                        self.recv_buffer += self.sock.recv(message_length - len(self.recv_buffer))
+                        self.recv_buffer += self.sock.recv(
+                            message_length - len(self.recv_buffer))
                     Logger.logd(str(self.recv_buffer), level=Logger.DEBUG)
                     msg = MessageFactory.get_message(self.recv_buffer)
                     if msg:
                         self.message_list.put(msg)
-                    package_length -= (message_length + MessageFactory.MESSAGE_PREFIX_LENGTH)
+                    package_length -= (message_length +
+                                       MessageFactory.MESSAGE_PREFIX_LENGTH)
             self.sock.close()
-        self.target_work = threading.Thread(target=_main_loop, name='target_work')
+        self.target_work = threading.Thread(
+            target=_main_loop, name='target_work')
         # 设定子线程为守护线程，保证在socket拥塞的情况下能正常退出
         self.target_work.setDaemon(True)
         self.target_work.start()
 
-        self.target_heart_break = threading.Thread(target=self._heart_break, name='heart_break')
+        self.target_heart_break = threading.Thread(
+            target=self._heart_break, name='heart_break')
         # 设定心跳包发送进程为守护进程，保证在一直未接到消息时心跳包发送不会停止
         self.target_heart_break.setDaemon(True)
         self.target_heart_break.start()
@@ -169,11 +173,12 @@ class PandaAPI(object):
     def set_room(self, room_id):
         self.room_id = room_id
         self.room_info['ts'] = int(time.time())
-        self.danmu_uri = self.room_api.format(self.room_id, self.room_info['ts'])
+        self.danmu_uri = self.room_api.format(
+            self.room_id, self.room_info['ts'])
 
     def get_message(self):
         """ -> msg(BaseMessage) """
-        #拥塞队列消息
+        # 拥塞队列消息
         return self.message_list.get(block=True)
 
     def exit(self):
