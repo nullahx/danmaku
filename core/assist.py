@@ -21,7 +21,7 @@ class PandaAPI(object):
     target_heart_break = None
 
     MAX_RECV_BUFFER = 4096
-    HEART_BREAK_TIME = 180
+    HEART_BREAK_TIME = 6e4
 
     PACKAGE_PREFIX_LENGTH = 15
     PACKAGE_PREFIX_START = 11
@@ -31,8 +31,8 @@ class PandaAPI(object):
     # 直播间弹幕服务信息获取
     sock = None
 
-    room_api = "https://riven.panda.tv/chatroom/getinfo?roomid={0}&app=1&protocol=ws&_caller=panda-pc_web&_={1}"
-    msg = "u:{0}@{1}\nk:1\nt:300\nts:{2}\nsign:{3}\nauthtype:{4}"
+    room_api = "https://riven.panda.tv/chatroom/getinfo?roomid={0}&app=1&_caller=panda-sdk-riven&_={1}"
+    msg = "u:{0}@{1}\nts:{2}\nsign:{3}\nauthtype:{4}\nplat:jssdk\nversion:0.5.10\npdft:\nnetwork:unknown\ncompress:zlib"
 
     room_id = 0
     room_info = \
@@ -46,7 +46,7 @@ class PandaAPI(object):
         }
 
     server_has_select = 0
-    heart_keeper = b'\x00\x06\x00\x01'
+    heart_keeper = b'\x00\x06\x00\x00'
     message_list = queue.Queue(maxsize=500)
 
     recv_buffer = None
@@ -102,17 +102,18 @@ class PandaAPI(object):
         self.sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)   # 阻塞式socket
         self.sock.connect(self._get_server())
-        msg = self.msg.format(self.room_info['rid'], self.room_info['app_id'], self.room_info['time_stamp'],
-                              self.room_info['sign'], self.room_info['auth_type'])
+        msg = self.msg.format(
+            self.room_info['rid'],
+            self.room_info['app_id'],
+            self.room_info['time_stamp'],
+            self.room_info['sign'],
+            self.room_info['auth_type']
+        )
         msg_prefix = b'\x00\x06\x00\x02\x00' + bytes([len(msg), ])
-        msg_postfix = b'\x00\x06\x00\x00'
         self.sock.send(msg_prefix + msg.encode('utf-8'))
-        self.sock.send(msg_postfix)
         print('弹幕服务登录成功！\t房间号：' + str(self.room_id))
 
-        self.sock.recv(self.MAX_RECV_BUFFER)    # 服务器返回\x00\x06\x00\x06
-        # 获取心跳包
-        self.heart_keeper = self.sock.recv(self.MAX_RECV_BUFFER)
+        self.sock.recv(self.MAX_RECV_BUFFER)
         Logger.logd('heart break:{}'.format(
             self.heart_keeper), level=Logger.DEBUG)
 
@@ -120,6 +121,8 @@ class PandaAPI(object):
         def _main_loop():
             """ 消息接收线程，将消息加入拥塞队列 """
             while not self._is_stopped:
+                # print(self.sock.recv(4096))
+                # continue
                 self.recv_buffer = self.sock.recv(self.PACKAGE_PREFIX_LENGTH)
                 if not self.recv_buffer or not self.recv_buffer.startswith(self.PACKAGE_START):
                     continue
@@ -190,7 +193,7 @@ class PandaAPI(object):
 if __name__ == '__main__':
     import logging
     # logging.basicConfig(level=logging.DEBUG)
-    panda = PandaAPI(20641)
+    panda = PandaAPI(10015)
     panda.login()
     panda.mainloop()
     while True:
